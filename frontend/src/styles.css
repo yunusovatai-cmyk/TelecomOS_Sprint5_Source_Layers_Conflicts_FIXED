@@ -200,6 +200,48 @@ header p, .panel p { color: #90a4c2; margin: 0; }
   header { align-items: flex-start; flex-direction: column; }
 }
 
+.pdf-review-workspace {
+  display: grid;
+  grid-template-columns: 300px minmax(420px, 1fr) 340px;
+  gap: 12px;
+  height: calc(100vh - 112px);
+}
+.pdf-review-left, .pdf-review-inspector, .pdf-viewer-panel { min-height: 0; overflow: auto; }
+.pdf-page-controls { display: flex; gap: 4px; margin: 14px 0; flex-wrap: wrap; }
+.pdf-page-controls button { min-width: 30px; padding: 6px !important; background: #17253e !important; }
+.pdf-page-controls button.selected { background: #4ca6ff !important; }
+.pdf-filters { display: grid; gap: 8px; margin-bottom: 12px; }
+.pdf-filters select, .pdf-review-inspector select {
+  width: 100%; padding: 9px; border: 1px solid #263a5b; border-radius: 8px; background: #17253e; color: white;
+}
+.pdf-filters label { color: #90a4c2; font-size: 12px; }
+.pdf-filters input[type="range"] { margin: 7px 0 0; padding: 0; }
+.pdf-evidence-list { display: grid; gap: 6px; }
+.pdf-evidence-list button { text-align: left; background: #0d1728; border: 1px solid #263a5b; }
+.pdf-evidence-list button.selected { border-color: #4ca6ff; }
+.pdf-evidence-list span, .asset-pdf-evidence span { display: block; color: #90a4c2; font-size: 11px; margin-top: 4px; }
+.pdf-page-canvas { position: relative; width: 100%; line-height: 0; }
+.pdf-page-canvas img { display: block; width: 100%; height: auto; background: white; }
+.pdf-bbox { position: absolute; min-width: 4px; min-height: 4px; padding: 0 !important; border: 2px solid #4ca6ff !important; background: rgba(76, 166, 255, .12) !important; border-radius: 2px !important; }
+.pdf-bbox.span { border-color: #9b78ff !important; background: rgba(155, 120, 255, .13) !important; }
+.pdf-bbox.anchor { border-color: #ffbd52 !important; background: rgba(255, 189, 82, .14) !important; }
+.pdf-bbox.selected { border-width: 4px !important; box-shadow: 0 0 0 2px rgba(255,255,255,.75); }
+.raw-evidence { background: #0d1728; border: 1px solid #263a5b; padding: 10px; border-radius: 8px; color: #eef4ff !important; overflow-wrap: anywhere; }
+.pdf-review-inspector textarea { width: 100%; min-height: 72px; margin: 8px 0; }
+.asset-pdf-evidence { display: grid; gap: 6px; }
+.asset-pdf-evidence button { display: grid; text-align: left; background: #0d1728; border: 1px solid #263a5b; }
+.asset-pdf-evidence b { color: #4ca6ff; }
+
+@media (max-width: 1300px) {
+  .pdf-review-workspace { grid-template-columns: 250px minmax(380px, 1fr); height: auto; }
+  .pdf-review-inspector { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .pdf-review-workspace { grid-template-columns: 1fr; }
+  .pdf-review-inspector { grid-column: auto; }
+}
+
 
 .import-layout {
   display: grid;

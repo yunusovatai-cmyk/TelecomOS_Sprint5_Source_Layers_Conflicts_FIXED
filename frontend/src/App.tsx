@@ -4,10 +4,12 @@ import {
   NavLink,
   Route,
   Routes,
+  useLocation,
   useNavigate,
 } from "react-router-dom";
-import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip } from "react-leaflet";
+import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { api } from "./services/api";
+import PdfReviewWorkspace from "./PdfReviewWorkspace";
 import "./styles.css";
 import "leaflet/dist/leaflet.css";
 
@@ -46,6 +48,16 @@ type Conflict = {
   decision_reason: string | null;
 };
 
+type AssetPdfEvidence = {
+  id: string;
+  document_id: string;
+  document: string;
+  page: number;
+  type: string;
+  raw_text: string;
+  confidence: number;
+};
+
 type AppState = {
   projects: Project[];
   assets: Asset[];
@@ -61,6 +73,7 @@ type AppState = {
 
 function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [state, setState] = useState<AppState>({
     projects: [],
     assets: [],
@@ -113,6 +126,21 @@ function Layout() {
   useEffect(() => {
     refresh().catch(console.error);
   }, []);
+
+  useEffect(() => {
+    const parameters = new URLSearchParams(location.search);
+    const projectId = parameters.get("project_id");
+    if (projectId && projectId !== state.selectedProjectId) {
+      changeProject(projectId).catch(console.error);
+      return;
+    }
+    const assetId = parameters.get("asset_id");
+    if (!assetId) return;
+    setState((current) => ({
+      ...current,
+      selectedAsset: current.assets.find((asset) => asset.id === assetId) ?? current.selectedAsset,
+    }));
+  }, [location.search, state.assets, state.selectedProjectId]);
 
   async function loadDemo() {
     setState((current) => ({ ...current, loading: true, error: "" }));
@@ -302,15 +330,18 @@ const filteredAssets = useMemo(() => {
             }
           />
           <Route path="/import" element={<ImportCenter onImported={async (projectId) => { await refresh(projectId); navigate("/engineering"); }} />} />
+          <Route path="/pdf-review/:documentId" element={<PdfReviewWorkspace />} />
           <Route
             path="/review"
             element={
               <ReviewQueue
                 assets={state.assets.filter((asset) => asset.status === "REVIEW")}
+                projectId={state.selectedProjectId}
                 onOpen={(asset) => {
                   setState((current) => ({ ...current, selectedAsset: asset }));
                   navigate("/engineering");
                 }}
+                onOpenPdf={(documentId, page) => navigate(`/pdf-review/${documentId}?page=${page}`)}
               />
             }
           />
@@ -422,6 +453,16 @@ function ProjectsPage({
   );
 }
 
+function MapFocus({ asset }: { asset: Asset | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (asset?.latitude !== null && asset?.latitude !== undefined && asset.longitude !== null) {
+      map.setView([asset.latitude, asset.longitude], Math.max(map.getZoom(), 18));
+    }
+  }, [asset, map]);
+  return null;
+}
+
 function EngineeringMap({
   assets,
   selectedAsset,
@@ -469,9 +510,17 @@ function EngineeringMap({
 
   const [draftIssue, setDraftIssue] = useState("");
   const [decisionReason, setDecisionReason] = useState("");
+  const [pdfEvidence, setPdfEvidence] = useState<AssetPdfEvidence[]>([]);
 
   useEffect(() => {
     setDraftIssue(selectedAsset?.issue ?? "");
+    if (!selectedAsset) {
+      setPdfEvidence([]);
+      return;
+    }
+    api.get<{ items: AssetPdfEvidence[] }>(`/assets/${selectedAsset.id}/pdf-evidence`)
+      .then((response) => setPdfEvidence(response.data.items))
+      .catch(() => setPdfEvidence([]));
   }, [selectedAsset]);
 
   const reviewItems = assets.filter((asset) => asset.status === "REVIEW");
@@ -531,6 +580,7 @@ function EngineeringMap({
           </div>
 
           <MapContainer center={center} zoom={15} className="leaflet-map">
+            <MapFocus asset={selectedAsset} />
             <TileLayer
               attribution="&copy; OpenStreetMap contributors"
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -648,6 +698,18 @@ function EngineeringMap({
                   Return to Review
                 </button>
               </div>
+              <h3>PDF Evidence</h3>
+              {pdfEvidence.length === 0 ? <p>No linked PDF evidence.</p> : (
+                <div className="asset-pdf-evidence">
+                  {pdfEvidence.map((item) => (
+                    <button key={item.id} onClick={() => window.location.assign(`/pdf-review/${item.document_id}?page=${item.page}`)}>
+                      <strong>{item.document} · page {item.page}</strong>
+                      <span>{item.raw_text}</span>
+                      <b>{Math.round(item.confidence * 100)}%</b>
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </aside>
@@ -807,15 +869,34 @@ function ImportCenter({
 }
 function ReviewQueue({
   assets,
+  projectId,
   onOpen,
+  onOpenPdf,
 }: {
   assets: Asset[];
+  projectId: string;
   onOpen: (asset: Asset) => void;
+  onOpenPdf: (documentId: string, page: number) => void;
 }) {
+  const [pdfItems, setPdfItems] = useState<Array<{
+    id: string; type: string; pole_id: string | null; document_id: string | null;
+    document: string | null; page: number | null; confidence: number;
+  }>>([]);
+
+  useEffect(() => {
+    if (!projectId) {
+      setPdfItems([]);
+      return;
+    }
+    api.get<{ items: typeof pdfItems }>("/review/pdf-items", { params: { project_id: projectId, limit: 500 } })
+      .then((response) => setPdfItems(response.data.items))
+      .catch(() => setPdfItems([]));
+  }, [projectId]);
+
   return (
     <section className="panel">
       <h2>Review Queue</h2>
-      {assets.length === 0 && <p>No open review items.</p>}
+      {assets.length === 0 && pdfItems.length === 0 && <p>No open review items.</p>}
       <div className="review-table">
         {assets.map((asset) => (
           <button key={asset.id} onClick={() => onOpen(asset)}>
@@ -825,6 +906,16 @@ function ReviewQueue({
               <span>{asset.issue ?? "Requires engineering review"}</span>
             </div>
             <b>Open on map</b>
+          </button>
+        ))}
+        {pdfItems.map((item) => (
+          <button key={`${item.type}-${item.id}`} onClick={() => item.document_id && item.page && onOpenPdf(item.document_id, item.page)}>
+            <span className="severity">{item.type.replace(/_/g, " ")}</span>
+            <div>
+              <strong>{item.pole_id ?? "PDF evidence"}</strong>
+              <span>{item.document ?? "Permit PDF"} · page {item.page ?? "—"} · {Math.round(item.confidence * 100)}%</span>
+            </div>
+            <b>Open PDF</b>
           </button>
         ))}
       </div>
