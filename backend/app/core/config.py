@@ -10,6 +10,15 @@ class Settings(BaseSettings):
     minio_access_key: str = "telecomos"
     minio_secret_key: str = "telecomos123"
     minio_secure: bool = False
+    pdf_storage_bucket: str = "telecomos-private-documents"
+    pdf_presigned_ttl_seconds: int = 300
+    pdf_background_size_threshold_bytes: int = 10 * 1024 * 1024
+    pdf_background_page_threshold: int = 50
+    pdf_job_max_attempts: int = 3
+    pdf_job_stale_seconds: int = 300
+    pdf_job_retention_days: int = 30
+    pdf_rendered_page_retention_days: int = 7
+    pdf_worker_poll_seconds: int = 2
     pdf_extraction_timeout_seconds: int = 180
     pdf_max_pages: int = 500
     pdf_max_words: int = 1_000_000

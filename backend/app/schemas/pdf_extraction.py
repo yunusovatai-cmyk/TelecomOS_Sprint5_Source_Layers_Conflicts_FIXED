@@ -87,3 +87,32 @@ class PdfWorkspaceResponse(BaseModel):
 
 class EvidenceReviewRequest(BaseModel):
     status: str
+
+
+class PdfJobResponse(BaseModel):
+    id: str
+    project_id: str
+    document_id: str
+    operation: str
+    status: str
+    progress: int
+    stage: str
+    attempts: int
+    max_attempts: int
+    error_code: str | None
+    error_message: str | None
+    queued_at: str
+    started_at: str | None
+    heartbeat_at: str | None
+    finished_at: str | None
+    created_at: str
+    updated_at: str
+    duplicate_document: bool = False
+    reused_job: bool = False
+
+
+class PdfJobListResponse(BaseModel):
+    items: list[PdfJobResponse]
+    total: int
+    offset: int
+    limit: int

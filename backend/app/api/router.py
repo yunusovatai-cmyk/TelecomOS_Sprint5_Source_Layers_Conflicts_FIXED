@@ -11,6 +11,7 @@ from app.api.review import router as review_router
 from app.api.pdf_pole_extractions import router as pdf_pole_extractions_router
 from app.api.pole_entities import router as pole_entities_router
 from app.api.pole_relationships import router as pole_relationships_router
+from app.api.pdf_jobs import router as pdf_jobs_router
 
 api_router = APIRouter()
 api_router.include_router(projects_router)
@@ -25,3 +26,4 @@ api_router.include_router(conflicts_router)
 api_router.include_router(pdf_pole_extractions_router)
 api_router.include_router(pole_entities_router)
 api_router.include_router(pole_relationships_router)
+api_router.include_router(pdf_jobs_router)

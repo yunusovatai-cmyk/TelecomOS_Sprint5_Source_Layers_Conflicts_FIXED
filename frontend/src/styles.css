@@ -417,6 +417,15 @@ header p, .panel p { color: #90a4c2; margin: 0; }
   display: grid;
   gap: 6px;
 }
+.pdf-job-status {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #263a5b;
+  border-radius: 8px;
+}
+.pdf-job-status progress { width: 100%; }
 @media (max-width: 1000px) {
   .conflict-list article { grid-template-columns: 1fr; }
 }
