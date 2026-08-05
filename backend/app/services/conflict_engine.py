@@ -17,7 +17,10 @@ def _normalize(value: str) -> str:
 
 
 def rebuild_conflicts(project_id: uuid.UUID, db: Session) -> list[Conflict]:
-    db.execute(delete(Conflict).where(Conflict.project_id == project_id))
+    db.execute(delete(Conflict).where(
+        Conflict.project_id == project_id,
+        Conflict.conflict_type == "AERIAL_VS_UG",
+    ))
 
     assets = list(db.scalars(select(Asset).where(Asset.project_id == project_id)))
     documents = {
@@ -30,11 +33,6 @@ def rebuild_conflicts(project_id: uuid.UUID, db: Session) -> list[Conflict]:
         groups[_normalize(asset.name)].append(asset)
 
     conflicts: list[Conflict] = []
-
-    print("\n===== GROUPS =====")
-    for k, g in groups.items():
-        print(k, [a.asset_type for a in g], [a.name for a in g])
-    print("==================")
 
     for object_key, group in groups.items():
         types = {asset.asset_type for asset in group}

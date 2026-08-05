@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>PDF Entity Resolution Fixture</name>
+    <Placemark><name>Pole #111111111</name><Point><coordinates>-121.0000,39.0000</coordinates></Point></Placemark>
+    <Placemark><name>Pole #222222222</name><Point><coordinates>-120.9997,39.0000</coordinates></Point></Placemark>
+    <Placemark><name>Pole #333333333 A</name><Point><coordinates>-121.0020,39.0010</coordinates></Point></Placemark>
+    <Placemark><name>Pole #333333333 B</name><Point><coordinates>-121.0030,39.0015</coordinates></Point></Placemark>
+    <Placemark><name>Pole #444444444</name><Point><coordinates>-121.0000,39.0010</coordinates></Point></Placemark>
+    <Placemark><name>Pole Manual Candidate</name><Point><coordinates>-120.9980,39.0000</coordinates></Point></Placemark>
+    <Placemark><name>Aerial Existing Topology</name><LineString><coordinates>-121.0000,39.0000 -121.0000,39.0010</coordinates></LineString></Placemark>
+  </Document>
+</kml>

@@ -18,6 +18,14 @@ class ConflictRead(BaseModel):
     details_json: str
     decision: str | None
     decision_reason: str | None
+    source_document_id: uuid.UUID | None
+    source_page: int | None
+    pole_entity_id: uuid.UUID | None
+    asset_id: uuid.UUID | None
+    evidence_json: str | None
+    expected_value: str | None
+    observed_value: str | None
+    confidence: float | None
     created_at: datetime
 
 

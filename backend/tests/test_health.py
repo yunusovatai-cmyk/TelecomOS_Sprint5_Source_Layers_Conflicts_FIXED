@@ -57,3 +57,12 @@ def test_conflicts_reject_invalid_project_uuid():
 def test_conflict_rebuild_rejects_invalid_project_uuid():
     response = client.post("/api/v1/conflicts/rebuild", params={"project_id": "not-a-uuid"})
     assert response.status_code == 422
+
+
+def test_pdf_pole_dry_run_rejects_invalid_project_uuid():
+    response = client.post(
+        "/api/v1/pdf-pole-extractions/dry-run",
+        data={"project_id": "not-a-uuid"},
+        files={"file": ("permit.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    assert response.status_code == 422
