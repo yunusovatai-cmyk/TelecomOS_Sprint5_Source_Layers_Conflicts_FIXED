@@ -15,12 +15,12 @@ router = APIRouter(prefix="/conflicts", tags=["conflicts"])
 
 
 @router.post("/rebuild", response_model=list[ConflictRead])
-def rebuild(project_id: str, db: Session = Depends(get_db)) -> list[Conflict]:
+def rebuild(project_id: uuid.UUID, db: Session = Depends(get_db)) -> list[Conflict]:
     return rebuild_conflicts(project_id, db)
 
 
 @router.get("", response_model=list[ConflictRead])
-def list_conflicts(project_id: str, db: Session = Depends(get_db)) -> list[Conflict]:
+def list_conflicts(project_id: uuid.UUID, db: Session = Depends(get_db)) -> list[Conflict]:
     return list(
         db.scalars(
             select(Conflict)

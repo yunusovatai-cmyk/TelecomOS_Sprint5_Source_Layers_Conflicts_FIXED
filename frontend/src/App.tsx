@@ -208,7 +208,7 @@ const filteredAssets = useMemo(() => {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">TelecomOS</div>
-        <div className="version">Sprint 1</div>
+        <div className="version">Sprint 5</div>
 
         <nav>
           <NavLink to="/" end>Dashboard</NavLink>

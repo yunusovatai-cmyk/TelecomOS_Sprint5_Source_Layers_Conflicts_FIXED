@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document><name>TelecomOS E2E Conflict</name><Folder><name>Aerial</name>
+    <Placemark><name>Shared E2E Route</name><LineString><coordinates>-121.61,39.01 -121.60,39.02</coordinates></LineString></Placemark>
+  </Folder></Document>
+</kml>

@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,7 +13,7 @@ router = APIRouter(prefix="/review", tags=["review"])
 
 @router.get("", response_model=list[AssetRead])
 def list_review_items(
-    project_id: str | None = None,
+    project_id: uuid.UUID | None = None,
     db: Session = Depends(get_db),
 ) -> list[Asset]:
     statement = select(Asset).where(Asset.status == "REVIEW")

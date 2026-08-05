@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>TelecomOS E2E Mini Project</name>
+    <Placemark>
+      <name>Pole E2E</name>
+      <Point><coordinates>-121.611595,39.010965</coordinates></Point>
+    </Placemark>
+    <Folder>
+      <name>Underground</name>
+      <Placemark>
+        <name>Mini Route</name>
+        <LineString><coordinates>-121.611595,39.010965 -121.610810,39.010530</coordinates></LineString>
+      </Placemark>
+    </Folder>
+  </Document>
+</kml>

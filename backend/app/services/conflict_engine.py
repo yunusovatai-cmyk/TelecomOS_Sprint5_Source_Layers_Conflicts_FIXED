@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from collections import defaultdict
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -15,7 +16,7 @@ def _normalize(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
-def rebuild_conflicts(project_id: str, db: Session) -> list[Conflict]:
+def rebuild_conflicts(project_id: uuid.UUID, db: Session) -> list[Conflict]:
     db.execute(delete(Conflict).where(Conflict.project_id == project_id))
 
     assets = list(db.scalars(select(Asset).where(Asset.project_id == project_id)))

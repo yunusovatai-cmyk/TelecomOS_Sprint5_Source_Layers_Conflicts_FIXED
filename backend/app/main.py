@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -11,9 +13,20 @@ from app.models.asset import Asset  # noqa: F401
 from app.models.document import Document  # noqa: F401
 from app.models.conflict import Conflict  # noqa: F401
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    try:
+        yield
+    finally:
+        engine.dispose()
+
+
 app = FastAPI(
     title=settings.app_name,
     version="2.0.0-sprint0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -25,11 +38,6 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api/v1")
-
-
-@app.on_event("startup")
-def startup() -> None:
-    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/")

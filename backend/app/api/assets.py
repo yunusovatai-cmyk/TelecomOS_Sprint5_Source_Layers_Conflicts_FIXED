@@ -15,7 +15,7 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 
 @router.get("", response_model=list[AssetRead])
 def list_assets(
-    project_id: str | None = None,
+    project_id: uuid.UUID | None = None,
     query: str | None = None,
     asset_type: str | None = None,
     status: str | None = None,

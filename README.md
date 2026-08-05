@@ -29,3 +29,25 @@ docker compose up --build --force-recreate
 Open `http://127.0.0.1:3000`.
 
 Import two GIS files into the same project where the same segment name is represented once as Aerial and once as UG. Open Engineering Map and click `Detect Conflicts`.
+
+## Automated E2E smoke test
+
+The smoke test uses only the small fixtures under `backend/tests/data/e2e`. It starts a clean Docker Compose stack, loads the demo project, imports a KMZ, verifies point and line assets, creates and resolves an `AERIAL_VS_UG` conflict, exercises Review Queue, and verifies asset status persistence.
+
+Run it from the repository root:
+
+```bash
+./scripts/e2e_smoke.sh
+```
+
+The stack and its test volumes are removed automatically when the test finishes. Docker, Docker Compose, `curl`, `zip`, and Python 3 are required.
+
+## CI
+
+GitHub Actions runs on every push and pull request:
+
+- Backend dependency installation, Python compile check, and pytest.
+- Frontend installation with `npm ci`, TypeScript validation, and production build.
+- Docker Compose build and startup with health checks, followed by the full E2E smoke test.
+
+No repository secrets are required by the workflow. On a Docker smoke failure, service status and Compose logs are printed before volumes are removed.

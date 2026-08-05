@@ -120,7 +120,7 @@ def _code_from_name(name: str) -> str:
 @router.post("")
 async def import_project_package(
     files: list[UploadFile] = File(...),
-    project_id: str | None = Form(default=None),
+    project_id: uuid.UUID | None = Form(default=None),
     project_name: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -128,7 +128,7 @@ async def import_project_package(
         raise HTTPException(status_code=400, detail="No files uploaded.")
     project = None
     if project_id:
-        project = db.get(Project, uuid.UUID(project_id))
+        project = db.get(Project, project_id)
     if project is None:
         resolved_name = (project_name or "Imported Project Package").strip()
         code = _code_from_name(resolved_name)
