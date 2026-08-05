@@ -30,10 +30,12 @@ def rebuild_conflicts(project_id: str, db: Session) -> list[Conflict]:
 
     conflicts: list[Conflict] = []
 
-print("\n===== GROUPS =====")
-for k, g in groups.items():
-    print(k, [a.asset_type for a in g], [a.name for a in g])
-print("==================")    for object_key, group in groups.items():
+    print("\n===== GROUPS =====")
+    for k, g in groups.items():
+        print(k, [a.asset_type for a in g], [a.name for a in g])
+    print("==================")
+
+    for object_key, group in groups.items():
         types = {asset.asset_type for asset in group}
         if "AERIAL_SPAN" in types and "UG_SEGMENT" in types:
             sources = []
