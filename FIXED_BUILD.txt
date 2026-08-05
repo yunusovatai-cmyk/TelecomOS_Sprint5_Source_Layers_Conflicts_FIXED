@@ -1,0 +1,4 @@
+This build fixes the broken Sprint 5 frontend:
+- removed duplicate conflict panel from ProjectsPage
+- added missing rebuildConflicts and decideConflict functions
+- added ImportMetaEnv typings without requiring vite/client

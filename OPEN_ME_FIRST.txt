@@ -1,0 +1,22 @@
+TELECOMOS SPRINT 3 — OBJECT REVIEW
+
+1. Stop Sprint 2:
+
+cd ~/Downloads/TelecomOS_Sprint2_KMZ_Import
+docker compose down
+
+2. Start Sprint 3:
+
+cd ~/Downloads/TelecomOS_Sprint3_Object_Review
+docker compose up --build
+
+3. Open:
+
+http://127.0.0.1:3000
+
+4. Import your KMZ.
+5. Open Engineering Map.
+6. Click an object.
+7. Add an engineering note.
+8. Approve or Reject.
+9. Press Refresh and confirm the status remains saved.
