@@ -51,3 +51,13 @@ GitHub Actions runs on every push and pull request:
 - Docker Compose build and startup with health checks, followed by the full E2E smoke test.
 
 No repository secrets are required by the workflow. On a Docker smoke failure, service status and Compose logs are printed before volumes are removed.
+
+## Background PDF processing
+
+Large permit-plan PDFs can be stored privately in MinIO and processed by the Redis-backed worker without blocking the API or UI. See [docs/pdf-processing-jobs.md](docs/pdf-processing-jobs.md) for the architecture, API contract, migration procedure, queue diagnostics, retention guidance and rollback notes.
+
+Run the reproducible background workflow with generated fixtures only:
+
+```bash
+./scripts/background_pdf_e2e.sh
+```

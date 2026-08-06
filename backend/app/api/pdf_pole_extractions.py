@@ -5,12 +5,10 @@ import hashlib
 import json
 import re
 import uuid
-from io import BytesIO
 from pathlib import PurePosixPath
 
-import pypdfium2 as pdfium
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
@@ -22,7 +20,7 @@ from app.core.config import settings
 from app.models.pdf_extraction import DocumentBlob, PdfPageText, PdfPoleEvidence
 from app.models.project import Project
 from app.models.pole_entity import PoleEntity, PoleEntitySource, PoleRelationship
-from app.schemas.pdf_extraction import EvidenceReviewRequest, PdfPoleDryRunResponse, PdfWorkspaceResponse
+from app.schemas.pdf_extraction import EvidenceReviewRequest, PdfJobResponse, PdfPoleDryRunResponse, PdfWorkspaceResponse
 from app.schemas.pole_entity import (
     CommitReport,
     CommitRequest,
@@ -30,7 +28,8 @@ from app.schemas.pole_entity import (
     ResolutionReport,
 )
 from app.services.document_classifier import extract_revision
-from app.services.pdf_pole_extractor import extract_evidence, extract_native_pages
+from app.services.object_storage import get_object, put_pdf, remove_object
+from app.services.pdf_pole_extractor import extract_evidence, extract_native_pages, render_pdf_page as render_page_png
 from app.services.pdf_conflict_engine import compare_pdf_to_kmz
 from app.services.pole_entity_resolution import commit_relationships, resolve_pole_entities
 
@@ -67,7 +66,7 @@ async def _read_pdf_upload(file: UploadFile) -> bytes:
     return content
 
 
-@router.post("/dry-run", response_model=PdfPoleDryRunResponse)
+@router.post("/dry-run", response_model=PdfPoleDryRunResponse | PdfJobResponse)
 async def dry_run_pdf_pole_extraction(
     project_id: uuid.UUID = Form(...),
     file: UploadFile = File(...),
@@ -100,8 +99,37 @@ async def dry_run_pdf_pole_extraction(
         )
         db.add(document)
         db.flush()
+    uploaded = None
+    if not document.storage_object_key:
+        try:
+            stored = put_pdf(project_id=project_id, document_id=document.id, content=content, expected_sha256=digest)
+            uploaded = stored
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(status_code=503, detail="PDF object storage is unavailable.") from exc
+        document.storage_bucket = stored.bucket
+        document.storage_object_key = stored.object_key
+        document.storage_size_bytes = stored.size_bytes
+        document.storage_mime_type = stored.mime_type
     document_id = document.id
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        if uploaded is not None and not duplicate:
+            remove_object(uploaded.bucket, uploaded.object_key)
+        raise
+
+    if len(content) >= settings.pdf_background_size_threshold_bytes:
+        from app.api.pdf_jobs import create_job_record, serialize_job
+        from app.services.pdf_job_queue import enqueue
+        document = db.get(Document, document_id)
+        job, reused = create_job_record(db, document)
+        db.commit()
+        db.refresh(job)
+        if not reused:
+            enqueue(job.id)
+        return JSONResponse(serialize_job(job, duplicate=duplicate, reused=reused), status_code=202)
 
     try:
         pages = await asyncio.wait_for(
@@ -122,6 +150,18 @@ async def dry_run_pdf_pole_extraction(
         db.commit()
         raise HTTPException(status_code=422, detail="Unable to extract native PDF text.") from exc
 
+    if len(pages) >= settings.pdf_background_page_threshold:
+        from app.api.pdf_jobs import create_job_record, serialize_job
+        from app.services.pdf_job_queue import enqueue
+        document = db.get(Document, document_id)
+        document.processing_status = "REGISTERED"
+        job, reused = create_job_record(db, document)
+        db.commit()
+        db.refresh(job)
+        if not reused:
+            enqueue(job.id)
+        return JSONResponse(serialize_job(job, duplicate=duplicate, reused=reused), status_code=202)
+
     # Keep the project lock only while replacing derived rows. Native PDF
     # parsing happens above without an open database transaction.
     project = db.scalar(select(Project).where(Project.id == project_id).with_for_update())
@@ -141,12 +181,6 @@ async def dry_run_pdf_pole_extraction(
         ))
     db.execute(delete(PdfPoleEvidence).where(PdfPoleEvidence.document_id == document.id))
     db.execute(delete(PdfPageText).where(PdfPageText.document_id == document.id))
-
-    blob = db.scalar(select(DocumentBlob).where(DocumentBlob.document_id == document.id))
-    if blob is None:
-        db.add(DocumentBlob(document_id=document.id, content=content))
-    elif blob.content != content:
-        blob.content = content
 
     assets = list(db.scalars(select(Asset).where(Asset.project_id == project_id)))
     assets_by_pole_id: dict[str, Asset] = {}
@@ -399,34 +433,26 @@ def pdf_workspace(
     }
 
 
-def _render_page(content: bytes, page_number: int) -> bytes:
-    pdf = pdfium.PdfDocument(content)
-    if page_number < 1 or page_number > len(pdf):
-        raise ValueError("PDF page not found.")
-    page = pdf[page_number - 1]
-    width, height = page.get_size()
-    scale = 1.5
-    if width * height * scale * scale > settings.pdf_max_render_pixels:
-        raise ValueError("PDF page exceeds the rendering pixel limit.")
-    image = page.render(scale=scale).to_pil()
-    output = BytesIO()
-    image.save(output, format="PNG", optimize=True)
-    return output.getvalue()
-
-
 @router.get("/{document_id}/pages/{page_number}.png")
 async def render_pdf_page(
     document_id: uuid.UUID,
     page_number: int,
+    project_id: uuid.UUID = Query(...),
     db: Session = Depends(get_db),
 ) -> Response:
     document = _pdf_document(db, document_id)
-    blob = db.scalar(select(DocumentBlob).where(DocumentBlob.document_id == document.id))
-    if blob is None:
-        raise HTTPException(status_code=404, detail="Stored PDF content not found.")
+    if document.project_id != project_id:
+        raise HTTPException(status_code=404, detail="PDF document not found.")
+    if document.storage_bucket and document.storage_object_key:
+        content = await run_in_threadpool(get_object, document.storage_bucket, document.storage_object_key)
+    else:
+        blob = db.scalar(select(DocumentBlob).where(DocumentBlob.document_id == document.id))
+        if blob is None:
+            raise HTTPException(status_code=404, detail="Stored PDF content not found.")
+        content = blob.content
     try:
-        content = await asyncio.wait_for(
-            run_in_threadpool(_render_page, blob.content, page_number),
+        rendered = await asyncio.wait_for(
+            run_in_threadpool(render_page_png, content, page_number, max_pixels=settings.pdf_max_render_pixels),
             timeout=min(settings.pdf_extraction_timeout_seconds, 30),
         )
     except ValueError as exc:
@@ -435,7 +461,7 @@ async def render_pdf_page(
         raise HTTPException(status_code=504, detail="PDF page rendering timed out.") from exc
     except Exception as exc:
         raise HTTPException(status_code=422, detail="Unable to render PDF page.") from exc
-    return Response(content=content, media_type="image/png", headers={"Cache-Control": "private, max-age=300"})
+    return Response(content=rendered, media_type="image/png", headers={"Cache-Control": "private, max-age=300"})
 
 
 @router.patch("/{document_id}/evidence/{evidence_id}/review")

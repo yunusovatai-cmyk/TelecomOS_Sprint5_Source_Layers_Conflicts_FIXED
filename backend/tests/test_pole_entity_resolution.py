@@ -253,7 +253,12 @@ def _minimal_pdf(text: str) -> bytes:
     return bytes(output)
 
 
-def test_pdf_dry_run_commit_resolution_review_and_conflict_integration(db):
+def test_pdf_dry_run_commit_resolution_review_and_conflict_integration(db, monkeypatch):
+    from app.services.object_storage import StoredObject
+    monkeypatch.setattr(
+        "app.api.pdf_pole_extractions.put_pdf",
+        lambda **kwargs: StoredObject("private", "projects/test/document.pdf", kwargs["expected_sha256"], len(kwargs["content"]), "application/pdf"),
+    )
     project, _ = _project_document(db)
     _asset(db, project, "123456789", lon=-121.0, lat=39.0)
     _asset(db, project, "987654321", lon=-120.9999, lat=39.0)

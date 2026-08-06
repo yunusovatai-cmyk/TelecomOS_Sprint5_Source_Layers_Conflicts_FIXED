@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 import pdfplumber
+import pypdfium2 as pdfium
 
 
 POLE_ID = r"(?<!\d)\d{9}(?!\d)"
@@ -175,3 +176,18 @@ def extract_evidence(pages: Iterable[ExtractedPage], *, max_evidence: int = 50_0
             if len(evidence) > max_evidence:
                 raise ValueError(f"PDF contains more than {max_evidence} evidence records.")
     return evidence
+
+
+def render_pdf_page(content: bytes, page_number: int, *, max_pixels: int) -> bytes:
+    pdf = pdfium.PdfDocument(content)
+    if page_number < 1 or page_number > len(pdf):
+        raise ValueError("PDF page not found.")
+    page = pdf[page_number - 1]
+    width, height = page.get_size()
+    scale = 1.5
+    if width * height * scale * scale > max_pixels:
+        raise ValueError("PDF page exceeds the rendering pixel limit.")
+    image = page.render(scale=scale).to_pil()
+    output = io.BytesIO()
+    image.save(output, format="PNG", optimize=True)
+    return output.getvalue()

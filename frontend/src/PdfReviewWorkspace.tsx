@@ -154,7 +154,7 @@ export default function PdfReviewWorkspace() {
       <article className="panel pdf-viewer-panel">
         {error && <div className="error-banner">{error}</div>}
         <div className="pdf-page-canvas">
-          <img src={`${apiBaseUrl}/pdf-pole-extractions/${documentId}/pages/${page}.png`} alt={`PDF page ${page}`} />
+          <img src={`${apiBaseUrl}/documents/${documentId}/page/${page}.png?project_id=${encodeURIComponent(workspace?.document.project_id ?? "")}`} alt={`PDF page ${page}`} />
           {workspace?.items.map((item) => {
             const [x0, top, x1, bottom] = item.bbox;
             return <button

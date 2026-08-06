@@ -12,7 +12,9 @@ from app.models.project import Project  # noqa: F401
 from app.models.asset import Asset  # noqa: F401
 from app.models.document import Document  # noqa: F401
 from app.models.conflict import Conflict  # noqa: F401
-from app.models.pdf_extraction import DocumentBlob, PdfPageText, PdfPoleEvidence  # noqa: F401
+from app.models.pdf_extraction import (  # noqa: F401
+    DocumentBlob, PdfPageText, PdfPoleEvidence, PdfProcessingJob, PdfRenderedPage,
+)
 from app.models.pole_entity import PoleEntity, PoleEntityAudit, PoleEntitySource, PoleRelationship  # noqa: F401
 
 

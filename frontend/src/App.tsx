@@ -329,7 +329,7 @@ const filteredAssets = useMemo(() => {
               />
             }
           />
-          <Route path="/import" element={<ImportCenter onImported={async (projectId) => { await refresh(projectId); navigate("/engineering"); }} />} />
+          <Route path="/import" element={<ImportCenter projectId={state.selectedProjectId} onImported={async (projectId) => { await refresh(projectId); navigate("/engineering"); }} />} />
           <Route path="/pdf-review/:documentId" element={<PdfReviewWorkspace />} />
           <Route
             path="/review"
@@ -780,16 +780,73 @@ function EngineeringMap({
     </>
   );
 }
-function ImportCenter({
+export function ImportCenter({
+  projectId,
   onImported,
 }: {
+  projectId: string;
   onImported: (projectId: string) => Promise<void>;
 }) {
+  const navigate = useNavigate();
   const [files, setFiles] = useState<File[]>([]);
   const [projectName, setProjectName] = useState("");
   const [working, setWorking] = useState(false);
   const [report, setReport] = useState<any>(null);
   const [error, setError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [pdfJob, setPdfJob] = useState<any>(null);
+
+  const jobStorageKey = projectId ? `telecomos:pdf-job:${projectId}` : "";
+
+  async function pollJob(jobId: string) {
+    if (!projectId) return;
+    const response = await api.get(`/pdf-jobs/${jobId}`, { params: { project_id: projectId } });
+    setPdfJob(response.data);
+    if (response.data.status === "SUCCEEDED") localStorage.removeItem(jobStorageKey);
+  }
+
+  useEffect(() => {
+    if (!jobStorageKey) return;
+    const saved = localStorage.getItem(jobStorageKey);
+    if (saved) pollJob(saved).catch(() => localStorage.removeItem(jobStorageKey));
+  }, [jobStorageKey]);
+
+  useEffect(() => {
+    if (!pdfJob || !["QUEUED", "RUNNING"].includes(pdfJob.status)) return;
+    const timer = window.setInterval(() => pollJob(pdfJob.id).catch(() => setError("Unable to refresh PDF job status.")), 1500);
+    return () => window.clearInterval(timer);
+  }, [pdfJob?.id, pdfJob?.status, projectId]);
+
+  async function uploadPdfJob() {
+    const pdf = files.find((file) => file.name.toLowerCase().endsWith(".pdf"));
+    if (!pdf || !projectId) { setError("Select an existing project and one PDF file."); return; }
+    setWorking(true); setError(""); setUploadProgress(0);
+    const form = new FormData();
+    form.append("project_id", projectId); form.append("file", pdf);
+    try {
+      const response = await api.post("/pdf-jobs", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (event) => setUploadProgress(event.total ? Math.round(event.loaded * 100 / event.total) : 0),
+      });
+      setPdfJob(response.data);
+      localStorage.setItem(jobStorageKey, response.data.id);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "PDF upload failed.");
+    } finally { setWorking(false); }
+  }
+
+  async function cancelPdfJob() {
+    if (!pdfJob) return;
+    const response = await api.post(`/pdf-jobs/${pdfJob.id}/cancel`, null, { params: { project_id: projectId } });
+    setPdfJob(response.data);
+  }
+
+  async function retryPdfJob() {
+    if (!pdfJob) return;
+    const response = await api.post(`/pdf-jobs/${pdfJob.id}/retry`, null, { params: { project_id: projectId } });
+    setPdfJob(response.data);
+    localStorage.setItem(jobStorageKey, response.data.id);
+  }
 
   async function uploadPackage() {
     if (!files.length) {
@@ -836,6 +893,20 @@ function ImportCenter({
         <button onClick={uploadPackage} disabled={!files.length || working}>
           {working ? "Analyzing package..." : "Import Project Package"}
         </button>
+        <hr />
+        <h3>Background PDF processing</h3>
+        <p>Large permit plans upload without blocking the interface and resume status tracking after refresh.</p>
+        <button onClick={uploadPdfJob} disabled={working || !projectId || !files.some((file) => file.name.toLowerCase().endsWith(".pdf"))}>
+          {working ? `Uploading ${uploadProgress}%` : "Process PDF in background"}
+        </button>
+        {pdfJob && <div className="pdf-job-status" data-testid="pdf-job-status">
+          <strong>{pdfJob.status}</strong><span>{pdfJob.stage} · {pdfJob.progress}%</span>
+          <progress max="100" value={pdfJob.progress} />
+          {pdfJob.error_message && <div className="error-banner">{pdfJob.error_message}</div>}
+          {["QUEUED", "RUNNING"].includes(pdfJob.status) && <button onClick={cancelPdfJob}>Cancel</button>}
+          {["FAILED", "CANCELLED"].includes(pdfJob.status) && <button onClick={retryPdfJob}>Retry</button>}
+          {pdfJob.status === "SUCCEEDED" && <button onClick={() => navigate(`/pdf-review/${pdfJob.document_id}?page=1`)}>Open PDF Review</button>}
+        </div>}
       </article>
 
       <article className="panel">
